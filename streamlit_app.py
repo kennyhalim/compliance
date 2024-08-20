@@ -1,151 +1,211 @@
 import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='GDP dashboard',
+    page_title='Tenvos-Novachem Dashboard',
     page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
 )
 
 # -----------------------------------------------------------------------------
-# Declare some useful functions.
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
-
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
+# Assuming your connection is already set up
+conn = st.connection('mysql', type='sql')
 
 # -----------------------------------------------------------------------------
 # Draw the actual page
 
 # Set the title that appears at the top of the page.
 '''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
+# :earth_americas: Tenvos-Novachem Dashboard
 '''
 
-# Add some spacing
-''
-''
+# Fetch data for a longer period
+df = conn.query('CALL dashboardReport()', ttl=600)
 
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
+# Convert Checkin_DateTime to datetime if it's not already
+df['Checkin_DateTime'] = pd.to_datetime(df['Checkin_DateTime'])
 
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
+# Function to determine the shift date
+def get_shift_date(row):
+    # Assuming shifts starting before 4 AM belong to the previous day
+    if row['Checkin_DateTime'].hour < 4:
+        return row['Checkin_DateTime'].date() - timedelta(days=1)
+    return row['Checkin_DateTime'].date()
 
-countries = gdp_df['Country Code'].unique()
+# Apply the function to create a new 'Shift_Date' column
+df['Shift_Date'] = df.apply(get_shift_date, axis=1)
 
-if not len(countries):
-    st.warning("Select at least one country")
+# Group by Shift_Date and calculate daily totals
+daily_totals = df.groupby('Shift_Date').agg({
+    'recording_id': 'count',
+    'PRESHIFT': 'sum',
+    'POSTSHIFT': 'sum'
+}).reset_index()
 
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
+daily_totals.columns = ['Shift_Date', 'Total_Checkins', 'Pre_Shift_Checkins', 'Post_Shift_Checkins']
 
-''
-''
-''
+# Sort by date
+daily_totals = daily_totals.sort_values('Shift_Date')
 
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
+# Get the min and max dates from the data
+min_date = daily_totals['Shift_Date'].min()
+max_date = daily_totals['Shift_Date'].max()
 
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
+# Create a date range slider
+date_range = st.slider(
+    "Select report date range",
+    min_value=min_date,
+    max_value=max_date,
+    value=(min_date, max_date)  # Default to full range
 )
 
-''
-''
+# Filter the data based on the selected date range
+filtered_data = daily_totals[
+    (daily_totals['Shift_Date'] >= date_range[0]) & 
+    (daily_totals['Shift_Date'] <= date_range[1])
+]
 
+# Create shift labels
+shift_labels = [f"Shift {i+1}<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+# Create the line chart using Plotly
+fig = go.Figure()
 
-st.header(f'GDP in {to_year}', divider='gray')
+fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Total_Checkins'],
+                         mode='lines+markers', name='Total Check-ins'))
+fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Pre_Shift_Checkins'],
+                         mode='lines+markers', name='Pre-Shift Check-ins'))
+fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Post_Shift_Checkins'],
+                         mode='lines+markers', name='Post-Shift Check-ins'))
 
-''
+fig.update_layout(
+    title='Daily Check-ins by Shift',
+    xaxis_title='Shift',
+    yaxis_title='Number of Check-ins',
+    legend_title='Check-in Type',
+    hovermode='x unified',
+    xaxis=dict(tickangle=-45)
+)
 
-cols = st.columns(4)
+# # Display the chart
+# st.plotly_chart(fig, use_container_width=True)
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+# # Display the data table
+# st.write(filtered_data)
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
+col1, col2 = st.columns([3, 2])  # Adjust the ratio as needed
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+with col1:
+    st.plotly_chart(fig, use_container_width=True)
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+with col2:
+    st.write("Check-in Data")
+    st.dataframe(filtered_data.style.format({
+        'Shift_Date': lambda x: x.strftime('%Y-%m-%d'),
+        'Total_Checkins': '{:,.0f}',
+        'Pre_Shift_Checkins': '{:,.0f}',
+        'Post_Shift_Checkins': '{:,.0f}'
+    }), height=400)  # Adjust height as needed
+
+# Add a horizontal line for visual separation
+st.markdown("---")
+
+# Group by Employee_ID, first_name, last_name, Shift_Date and calculate daily totals for each employee
+employee_daily_totals = df.groupby(['employee_id', 'first_name', 'last_name', 'Shift_Date']).agg({
+    'recording_id': 'count',
+}).reset_index()
+
+employee_daily_totals.columns = ['Employee_ID', 'First_Name', 'Last_Name', 'Shift_Date', 'Total_Checkins']
+
+# Filter the employee data based on the selected date range
+filtered_employee_data = employee_daily_totals[
+    (employee_daily_totals['Shift_Date'] >= date_range[0]) & 
+    (employee_daily_totals['Shift_Date'] <= date_range[1])
+]
+
+# Create a full name column
+filtered_employee_data['Employee_Name'] = filtered_employee_data['First_Name'] + ' ' + filtered_employee_data['Last_Name']
+
+# Sort the data by Shift_Date
+filtered_employee_data = filtered_employee_data.sort_values('Shift_Date')
+
+# Create a mapping of dates to shift numbers
+unique_dates = sorted(filtered_employee_data['Shift_Date'].unique())
+date_to_shift = {date: f"Shift {i+1}" for i, date in enumerate(unique_dates)}
+
+# Apply the shift mapping
+filtered_employee_data['Shift_Label'] = filtered_employee_data['Shift_Date'].map(date_to_shift)
+
+# Create the pivot table for the heatmap
+heatmap_data = filtered_employee_data.pivot(index='Employee_Name', columns='Shift_Label', values='Total_Checkins')
+
+# Ensure all shift numbers are present and in order
+all_shifts = [f"Shift {i+1}" for i in range(len(unique_dates))]
+heatmap_data = heatmap_data.reindex(columns=all_shifts)
+
+# Replace NaN with 0 for no check-ins
+heatmap_data = heatmap_data.fillna(0)
+
+colorscale = [
+    [0, '#cc0000'],     # 0 check-ins
+    [0.33, '#cc0000'],  # Transition point
+    [0.33, '#FFF68F'],  # 1 check-in
+    [0.66, '#FFF68F'],  # Transition point
+    [0.66, '#26a418'],   # 2 or more check-ins
+    [1, '#26a418']
+]
+
+# Create the heatmap
+fig_heatmap = go.Figure(data=go.Heatmap(
+    z=heatmap_data.values,
+    x=heatmap_data.columns,
+    y=heatmap_data.index,
+    colorscale=colorscale,
+    showscale=False,
+    text=heatmap_data.values,
+    texttemplate="%{text}",
+    textfont={"size":10},
+    zmin=0,  # Set minimum value
+    zmax=2   # Set maximum value for color scaling
+))
+
+# Update layout
+fig_heatmap.update_layout(
+    title='Employee Check-ins by Shift',
+    xaxis_title='Shift Number',
+    yaxis_title='Employee Name',
+    xaxis=dict(tickangle=-45),
+    height=800,  # Adjust based on number of employees
+)
+
+# Display the heatmap chart
+st.plotly_chart(fig_heatmap, use_container_width=True)
+
+employee_total_checkins = filtered_employee_data.groupby('Employee_Name')['Total_Checkins'].sum().sort_values(ascending=False)
+employee_total_checkins = employee_total_checkins.sort_index()
+
+# Create the bar chart
+fig_bar = go.Figure(data=[
+    go.Bar(
+        x=employee_total_checkins.index,
+        y=employee_total_checkins.values,
+        text=employee_total_checkins.values,
+        textposition='auto',
+    )
+])
+
+# Update layout
+fig_bar.update_layout(
+    title='Total Check-ins per Employee',
+    xaxis_title='Employee Name',
+    yaxis_title='Number of Check-ins',
+    height=600,
+    xaxis=dict(tickangle=-45)
+)
+
+# Display the bar chart
+st.plotly_chart(fig_bar, use_container_width=True)
+
