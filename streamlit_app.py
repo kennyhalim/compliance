@@ -23,7 +23,7 @@ conn = st.connection('mysql', type='sql')
 '''
 
 # Fetch data for a longer period
-df = conn.query('CALL dashboardReport()', ttl=600)
+df = conn.query('CALL getDashboardReport()', ttl=600)
 
 # Convert Checkin_DateTime to datetime if it's not already
 df['Checkin_DateTime'] = pd.to_datetime(df['Checkin_DateTime'])
