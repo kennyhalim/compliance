@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
     page_title='Tenvos-Novachem Dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    #page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
 )
 
 # -----------------------------------------------------------------------------
@@ -96,19 +96,19 @@ fig.update_layout(
 # # Display the data table
 # st.write(filtered_data)
 
-col1, col2 = st.columns([3, 2])  # Adjust the ratio as needed
+#col1, col2 = st.columns([3, 2])  # Adjust the ratio as needed
 
-with col1:
-    st.plotly_chart(fig, use_container_width=True)
 
-with col2:
-    st.write("Check-in Data")
-    st.dataframe(filtered_data.style.format({
-        'Shift_Date': lambda x: x.strftime('%Y-%m-%d'),
-        'Total_Checkins': '{:,.0f}',
-        'Pre_Shift_Checkins': '{:,.0f}',
-        'Post_Shift_Checkins': '{:,.0f}'
-    }), height=400)  # Adjust height as needed
+st.plotly_chart(fig, use_container_width=True)
+
+
+st.write("Check-in Data")
+st.dataframe(filtered_data.style.format({
+    'Shift Date': lambda x: x.strftime('%Y-%m-%d'),
+    'Total Checkins': '{:,.0f}',
+    'Pre-shift Checkins': '{:,.0f}',
+    'Post-shift Checkins': '{:,.0f}'
+}), height=400)  # Adjust height as needed
 
 # Add a horizontal line for visual separation
 st.markdown("---")
@@ -150,12 +150,12 @@ heatmap_data = heatmap_data.reindex(columns=all_shifts)
 heatmap_data = heatmap_data.fillna(0)
 
 colorscale = [
-    [0, '#cc0000'],     # 0 check-ins
-    [0.33, '#cc0000'],  # Transition point
-    [0.33, '#FFF68F'],  # 1 check-in
-    [0.66, '#FFF68F'],  # Transition point
-    [0.66, '#26a418'],   # 2 or more check-ins
-    [1, '#26a418']
+    [0, '#ff5757'],     # 0 check-ins
+    [0.33, '#ff5757'],  # Transition point
+    [0.33, '#ffde59'],  # 1 check-in
+    [0.66, '#ffde59'],  # Transition point
+    [0.66, '#00bf63'],   # 2 or more check-ins
+    [1, '#00bf63']
 ]
 
 # Create the heatmap
