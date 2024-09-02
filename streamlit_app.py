@@ -69,7 +69,9 @@ filtered_data = daily_totals[
 
 # Create shift labels
 #shift_labels = [f"Shift {i+1}<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
-shift_labels = [f"Shift {i+1}" for i, date in enumerate(filtered_data['Shift_Date'])]
+#shift_labels = [f"Shift {i+1}" for i, date in enumerate(filtered_data['Shift_Date'])]
+shift_labels = [f"<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
+
 #st.dataframe(shift_labels)
 
 # Create the line chart using Plotly
@@ -161,22 +163,29 @@ filtered_employee_data = filtered_employee_data.sort_values('Shift_Date')
 
 # Create a mapping of dates to shift numbers
 unique_dates = sorted(filtered_employee_data['Shift_Date'].unique())
-date_to_shift = {date: f"Shift {i+1}" for i, date in enumerate(unique_dates)}
+#date_to_shift = {date: f"Shift {i+1}" for i, date in enumerate(unique_dates)}
+date_to_shift = {date: f"<br>{unique_dates[i].strftime('%m-%d-%y')}" for i, date in enumerate(unique_dates)}
+#shift_labels = [f"<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
 
 # Apply the shift mapping
 filtered_employee_data['Shift_Label'] = filtered_employee_data['Shift_Date'].map(date_to_shift)
+
 
 # Create the pivot table for the heatmap
 heatmap_data = filtered_employee_data.pivot(index='Employee_Name', columns='Shift_Label', values='Total_Checkins')
 
 # Ensure all shift numbers are present and in order
-all_shifts = [f"Shift {i+1}" for i in range(len(unique_dates))]
+#all_shifts = [f"Shift {i+1}" for i in range(len(unique_dates))]
+
+all_shifts = [f"<br>{unique_dates[i].strftime('%m-%d-%y')}" for i in range(len(unique_dates))]
+#shift_labels = [f"<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
+
+
 heatmap_data = heatmap_data.reindex(columns=all_shifts)
-
-
 
 # Replace NaN with 0 for no check-ins
 heatmap_data = heatmap_data.fillna(0)
+
 
 colorscale = [
     [0, '#ff8a8a'],     # 0 check-ins
