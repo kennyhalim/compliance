@@ -5,8 +5,7 @@ from datetime import datetime, timedelta
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='Tenvos-Novachem Dashboard',
-    #page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title='Tenvos Dashboard'
 )
 
 # -----------------------------------------------------------------------------
@@ -19,7 +18,7 @@ conn = st.connection('mysql', type='sql')
 
 # Set the title that appears at the top of the page.
 '''
-# :earth_americas: Tenvos-Novachem Dashboard
+#  Tenvos Turnaround Dashboard
 '''
 
 # Fetch data for a longer period
@@ -69,21 +68,45 @@ filtered_data = daily_totals[
 ]
 
 # Create shift labels
-shift_labels = [f"Shift {i+1}<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
+#shift_labels = [f"Shift {i+1}<br>{date.strftime('%m-%d-%y')}" for i, date in enumerate(filtered_data['Shift_Date'])]
+shift_labels = [f"Shift {i+1}" for i, date in enumerate(filtered_data['Shift_Date'])]
+#st.dataframe(shift_labels)
 
 # Create the line chart using Plotly
 fig = go.Figure()
 
-fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Total_Checkins'],
-                         mode='lines+markers', name='Total Check-ins'))
-fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Pre_Shift_Checkins'],
-                         mode='lines+markers', name='Pre-Shift Check-ins'))
-fig.add_trace(go.Scatter(x=shift_labels, y=filtered_data['Post_Shift_Checkins'],
-                         mode='lines+markers', name='Post-Shift Check-ins'))
+fig.add_trace(go.Scatter(
+    x=shift_labels,
+    y=filtered_data['Total_Checkins'],
+    mode='lines+markers',
+    name='Total Check-ins',
+    line=dict(color='#000000')#,
+    #marker=dict(size=8)
+))
+
+fig.add_trace(go.Scatter(
+    x=shift_labels,
+    y=filtered_data['Pre_Shift_Checkins'],
+    mode='lines+markers',
+    name='Pre-Shift Check-ins',
+    line=dict(color='#ff914d')#,
+    #marker=dict(size=8)
+))
+
+fig.add_trace(go.Scatter(
+    x=shift_labels,
+    y=filtered_data['Post_Shift_Checkins'],
+    mode='lines+markers',
+    name='Post-Shift Check-ins',
+    line=dict(color='#65a6fa')#,
+    #marker=dict(size=8)
+))
+
+
 
 fig.update_layout(
     title='Daily Check-ins by Shift',
-    xaxis_title='Shift',
+    #xaxis_title='Shift',
     yaxis_title='Number of Check-ins',
     legend_title='Check-in Type',
     hovermode='x unified',
@@ -150,12 +173,12 @@ heatmap_data = heatmap_data.reindex(columns=all_shifts)
 heatmap_data = heatmap_data.fillna(0)
 
 colorscale = [
-    [0, '#ff5757'],     # 0 check-ins
-    [0.33, '#ff5757'],  # Transition point
-    [0.33, '#ffde59'],  # 1 check-in
-    [0.66, '#ffde59'],  # Transition point
-    [0.66, '#00bf63'],   # 2 or more check-ins
-    [1, '#00bf63']
+    [0, '#ff8a8a'],     # 0 check-ins
+    [0.33, '#ff8a8a'],  # Transition point
+    [0.33, '#f5f578'],  # 1 check-in
+    [0.66, '#f5f578'],  # Transition point
+    [0.66, '#9fe59f'],   # 2 or more check-ins
+    [1, '#9fe59f']
 ]
 
 # Create the heatmap
@@ -194,6 +217,7 @@ fig_bar = go.Figure(data=[
         y=employee_total_checkins.values,
         text=employee_total_checkins.values,
         textposition='auto',
+        marker_color= '#4e7464'
     )
 ])
 
