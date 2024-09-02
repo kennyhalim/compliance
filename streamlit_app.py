@@ -18,7 +18,7 @@ conn = st.connection('mysql', type='sql')
 
 # Set the title that appears at the top of the page.
 '''
-#  Tenvos Turnaround Dashboard
+#  Tenvos Dashboard for E2 Turnaround
 '''
 
 # Fetch data for a longer period
@@ -126,12 +126,16 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 st.write("Check-in Data")
-st.dataframe(filtered_data.style.format({
-    'Shift Date': lambda x: x.strftime('%Y-%m-%d'),
-    'Total Checkins': '{:,.0f}',
-    'Pre-shift Checkins': '{:,.0f}',
-    'Post-shift Checkins': '{:,.0f}'
-}), height=400)  # Adjust height as needed
+
+
+filtered_data = filtered_data.rename(columns={"Shift_Date": "Shift Date", "Total_Checkins": "Total Checkins", "Pre_Shift_Checkins":"Pre-Shift Checkins", "Post_Shift_Checkins":"Post-Shift Checkins"})
+filtered_data = filtered_data.set_index(['Shift Date'])
+filtered_data = filtered_data.sort_values(by=['Shift Date'], ascending=False)
+
+
+
+st.dataframe(filtered_data) 
+
 
 # Add a horizontal line for visual separation
 st.markdown("---")
@@ -168,6 +172,8 @@ heatmap_data = filtered_employee_data.pivot(index='Employee_Name', columns='Shif
 # Ensure all shift numbers are present and in order
 all_shifts = [f"Shift {i+1}" for i in range(len(unique_dates))]
 heatmap_data = heatmap_data.reindex(columns=all_shifts)
+
+
 
 # Replace NaN with 0 for no check-ins
 heatmap_data = heatmap_data.fillna(0)
