@@ -233,7 +233,8 @@ fig_bar.update_layout(
     xaxis_title='Employee Name',
     yaxis_title='Number of Check-ins',
     height=600,
-    xaxis=dict(tickangle=-45)
+    xaxis=dict(tickangle=-45),
+    hovermode='x unified'
 )
 
 # Display the bar chart
