@@ -18,7 +18,7 @@ conn = st.connection('mysql', type='sql')
 
 # Set the title that appears at the top of the page.
 '''
-#  Tenvos Dashboard for CAR
+#  Tenvos Dashboard for CAR 
 '''
 
 # Fetch data for a longer period
