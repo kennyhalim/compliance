@@ -54,13 +54,19 @@ if (df.shape[0] != 0) :
     min_date = daily_totals['Shift_Date'].min()
     max_date = daily_totals['Shift_Date'].max()
 
-    # Create a date range slider
-    date_range = st.slider(
-        "Select report date range",
-        min_value=min_date,
-        max_value=max_date,
-        value=(min_date, max_date)  # Default to full range
-    )
+    if min_date != max_date:
+
+        # Create a date range slider
+        date_range = st.slider(
+            "Select report date range",
+            min_value=min_date,
+            max_value=max_date,
+            value=(min_date, max_date)  # Default to full range
+        )
+    else:
+        date_range = []
+        date_range = [min_date, max_date]
+       
 
     # Filter the data based on the selected date range
     filtered_data = daily_totals[
